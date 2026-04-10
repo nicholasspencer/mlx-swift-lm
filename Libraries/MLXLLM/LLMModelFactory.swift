@@ -566,7 +566,7 @@ public final class LLMModelFactory: ModelFactory {
 
 }
 
-public class TrampolineModelFactory: NSObject, ModelFactoryTrampoline<ModelContext, ModelContainer>
+public class TrampolineModelFactory: NSObject, ModelFactoryTrampoline
 {
     public static func modelFactory() -> (any MLXLMCommon.ModelFactory)? {
         LLMModelFactory.shared

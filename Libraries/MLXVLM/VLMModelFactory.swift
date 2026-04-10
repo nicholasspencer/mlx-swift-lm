@@ -420,7 +420,7 @@ private func loadProcessorConfig(from modelDirectory: URL) async throws -> (
     }
 }
 
-public class TrampolineModelFactory: NSObject, ModelFactoryTrampoline<ModelContext, ModelContainer>
+public class TrampolineModelFactory: NSObject, ModelFactoryTrampoline
 {
     public static func modelFactory() -> (any MLXLMCommon.ModelFactory)? {
         VLMModelFactory.shared
