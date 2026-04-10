@@ -11,8 +11,8 @@ import MLXLMCommon
 import MLXVLM
 
 // Both MLXLMCommon and MLXEmbedders define ModelContainer.
-public typealias LMModelContainer = MLXLMCommon.ModelContainer
-public typealias EmbeddingModelContainer = MLXEmbedders.ModelContainer
+public typealias LLModelContainer = MLXLMCommon.ModelContainer
+public typealias EmbeddingModelContainer = MLXEmbedders.EmbedderModelContainer
 
 // MARK: - Error
 
@@ -44,17 +44,17 @@ public actor IntegrationTestModels {
     private let downloader: any Downloader
     private let tokenizerLoader: any TokenizerLoader
 
-    private var llmTask: Task<LMModelContainer, Error>?
-    private var vlmTask: Task<LMModelContainer, Error>?
-    private var lfm2Task: Task<LMModelContainer, Error>?
-    private var glm4Task: Task<LMModelContainer, Error>?
+    private var llmTask: Task<LLModelContainer, Error>?
+    private var vlmTask: Task<LLModelContainer, Error>?
+    private var lfm2Task: Task<LLModelContainer, Error>?
+    private var glm4Task: Task<LLModelContainer, Error>?
 
     public init(downloader: any Downloader, tokenizerLoader: any TokenizerLoader) {
         self.downloader = downloader
         self.tokenizerLoader = tokenizerLoader
     }
 
-    public func llmContainer() async throws -> LMModelContainer {
+    public func llmContainer() async throws -> LLModelContainer {
         if let task = llmTask {
             return try await task.value
         }
@@ -75,7 +75,7 @@ public actor IntegrationTestModels {
         return try await task.value
     }
 
-    public func vlmContainer() async throws -> LMModelContainer {
+    public func vlmContainer() async throws -> LLModelContainer {
         if let task = vlmTask {
             return try await task.value
         }
@@ -96,7 +96,7 @@ public actor IntegrationTestModels {
         return try await task.value
     }
 
-    public func lfm2Container() async throws -> LMModelContainer {
+    public func lfm2Container() async throws -> LLModelContainer {
         if let task = lfm2Task {
             return try await task.value
         }
@@ -117,7 +117,7 @@ public actor IntegrationTestModels {
         return try await task.value
     }
 
-    public func glm4Container() async throws -> LMModelContainer {
+    public func glm4Container() async throws -> LLModelContainer {
         if let task = glm4Task {
             return try await task.value
         }
@@ -143,8 +143,9 @@ public actor IntegrationTestModels {
         let tokenizerLoader = self.tokenizerLoader
         let id = "nomic_text_v1_5"
         print("Loading embedding model: \(id)")
-        let container = try await MLXEmbedders.loadModelContainer(
-            from: downloader, using: tokenizerLoader, configuration: .nomic_text_v1_5,
+        let container = try await EmbedderModelFactory.shared.loadContainer(
+            from: downloader, using: tokenizerLoader,
+            configuration: EmbedderRegistry.nomic_text_v1_5,
             progressHandler: logProgress(id)
         )
         print("Loaded embedding model: \(id)")
@@ -158,7 +159,7 @@ private let generateParameters = GenerateParameters(maxTokens: 200, temperature:
 
 public enum ChatSessionTests {
 
-    public static func oneShot(container: LMModelContainer) async throws {
+    public static func oneShot(container: LLModelContainer) async throws {
         let session = ChatSession(container, generateParameters: generateParameters)
         let result = try await streamAndCollect(
             session.streamResponse(
@@ -169,7 +170,7 @@ public enum ChatSessionTests {
         )
     }
 
-    public static func oneShotStream(container: LMModelContainer) async throws {
+    public static func oneShotStream(container: LLModelContainer) async throws {
         let session = ChatSession(container, generateParameters: generateParameters)
         let result = try await streamAndCollect(
             session.streamResponse(
@@ -180,7 +181,7 @@ public enum ChatSessionTests {
         )
     }
 
-    public static func multiTurnConversation(container: LMModelContainer) async throws {
+    public static func multiTurnConversation(container: LLModelContainer) async throws {
         let session = ChatSession(
             container, instructions: "You are a helpful assistant. Keep responses brief.",
             generateParameters: generateParameters)
@@ -199,7 +200,7 @@ public enum ChatSessionTests {
         )
     }
 
-    public static func visionModel(container: LMModelContainer) async throws {
+    public static func visionModel(container: LLModelContainer) async throws {
         let session = ChatSession(container, generateParameters: generateParameters)
         let redImage = CIImage(color: .red).cropped(
             to: CGRect(x: 0, y: 0, width: 100, height: 100))
@@ -214,7 +215,7 @@ public enum ChatSessionTests {
         )
     }
 
-    public static func streamDetailsWithTools(container: LMModelContainer) async throws {
+    public static func streamDetailsWithTools(container: LLModelContainer) async throws {
         let tools: [ToolSpec] = [weatherToolSchema]
         let session = ChatSession(container, generateParameters: generateParameters, tools: tools)
 
@@ -265,7 +266,7 @@ public enum ChatSessionTests {
         }
     }
 
-    public static func toolInvocation(container: LMModelContainer) async throws {
+    public static func toolInvocation(container: LLModelContainer) async throws {
         struct EmptyInput: Codable {}
 
         struct TimeOutput: Codable {
@@ -300,7 +301,7 @@ public enum ChatSessionTests {
         )
     }
 
-    public static func promptRehydration(container: LMModelContainer) async throws {
+    public static func promptRehydration(container: LLModelContainer) async throws {
         let history: [Chat.Message] = [
             .system("You are a helpful assistant."),
             .user("My name is Bob."),
@@ -345,7 +346,7 @@ public enum EmbedderTests {
     ) async throws {
         let modelId = "mlx-community/gemma-3-1b-it-qat-4bit"
         print("Loading Gemma 3 embedding model: \(modelId)")
-        let modelContainer = try await MLXEmbedders.loadModelContainer(
+        let modelContainer = try await EmbedderModelFactory.shared.loadContainer(
             from: downloader, using: tokenizerLoader, configuration: .init(id: modelId),
             progressHandler: logProgress(modelId)
         )
@@ -356,8 +357,8 @@ public enum EmbedderTests {
             "In the United States, PepsiCo Inc. is a leading soft drink company.",
         ]
 
-        let resultEmbeddings = await modelContainer.perform {
-            (model: EmbeddingModel, tokenizer: Tokenizer, pooling: Pooling) -> [[Float]] in
+        let resultEmbeddings = await modelContainer.perform { context in
+            let tokenizer = context.tokenizer
             let encoded = inputs.map {
                 tokenizer.encode(text: $0, addSpecialTokens: true)
             }
@@ -377,10 +378,10 @@ public enum EmbedderTests {
             let mask = (padded .!= (tokenizer.eosTokenId ?? 0))
             let tokenTypes = MLXArray.zeros(like: padded)
 
-            let modelOutput = model(
+            let modelOutput = context.model(
                 padded, positionIds: nil, tokenTypeIds: tokenTypes, attentionMask: mask)
 
-            let result = pooling(
+            let result = context.pooling(
                 modelOutput,
                 normalize: true, applyLayerNorm: true
             )
@@ -419,8 +420,9 @@ public enum EmbedderTests {
             "search_document: Polar Bears",
         ]
 
-        let resultEmbeddings = await container.perform {
-            (model: EmbeddingModel, tokenizer: Tokenizer, pooling: Pooling) -> [[Float]] in
+        let resultEmbeddings = await container.perform { context in
+            let tokenizer = context.tokenizer
+
             let inputs = searchInputs.map {
                 tokenizer.encode(text: $0, addSpecialTokens: true)
             }
@@ -437,8 +439,9 @@ public enum EmbedderTests {
                 })
             let mask = (padded .!= tokenizer.eosTokenId ?? 0)
             let tokenTypes = MLXArray.zeros(like: padded)
-            let result = pooling(
-                model(padded, positionIds: nil, tokenTypeIds: tokenTypes, attentionMask: mask),
+            let result = context.pooling(
+                context.model(
+                    padded, positionIds: nil, tokenTypeIds: tokenTypes, attentionMask: mask),
                 normalize: true, applyLayerNorm: true
             )
             result.eval()
@@ -470,7 +473,7 @@ public enum EmbedderTests {
 
 public enum ToolCallTests {
 
-    public static func lfm2FormatAutoDetection(container: LMModelContainer) async throws {
+    public static func lfm2FormatAutoDetection(container: LLModelContainer) async throws {
         let config = await container.configuration
         try check(
             config.toolCallFormat == ToolCallFormat.lfm2,
@@ -478,7 +481,7 @@ public enum ToolCallTests {
         )
     }
 
-    public static func lfm2EndToEndGeneration(container: LMModelContainer) async throws {
+    public static func lfm2EndToEndGeneration(container: LLModelContainer) async throws {
         let (result, toolCalls) = try await generateWithTools(
             container: container,
             userMessage: "What's the weather in Tokyo?")
@@ -501,7 +504,7 @@ public enum ToolCallTests {
         }
     }
 
-    public static func glm4FormatAutoDetection(container: LMModelContainer) async throws {
+    public static func glm4FormatAutoDetection(container: LLModelContainer) async throws {
         let config = await container.configuration
         try check(
             config.toolCallFormat == ToolCallFormat.glm4,
@@ -509,7 +512,7 @@ public enum ToolCallTests {
         )
     }
 
-    public static func glm4EndToEndGeneration(container: LMModelContainer) async throws {
+    public static func glm4EndToEndGeneration(container: LLModelContainer) async throws {
         let (result, toolCalls) = try await generateWithTools(
             container: container,
             userMessage: "What's the weather in Paris?")
@@ -533,7 +536,7 @@ public enum ToolCallTests {
     }
 
     private static func generateWithTools(
-        container: LMModelContainer,
+        container: LLModelContainer,
         userMessage: String
     ) async throws -> (text: String, toolCalls: [ToolCall]) {
         try await container.perform { context in

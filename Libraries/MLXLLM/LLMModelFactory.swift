@@ -20,7 +20,7 @@ private func create<C: Codable, M>(
 public enum LLMTypeRegistry {
 
     /// Shared instance with default model types.
-    public static let shared: ModelTypeRegistry = .init(creators: [
+    public static let shared: ModelTypeRegistry<LanguageModel> = .init(creators: [
         "mistral": create(LlamaConfiguration.self, LlamaModel.init),
         "llama": create(LlamaConfiguration.self, LlamaModel.init),
         "phi": create(PhiConfiguration.self, PhiModel.init),
@@ -458,7 +458,9 @@ private struct LLMUserInputProcessor: UserInputProcessor {
 /// ```
 public final class LLMModelFactory: ModelFactory {
 
-    public init(typeRegistry: ModelTypeRegistry, modelRegistry: AbstractModelRegistry) {
+    public init(
+        typeRegistry: ModelTypeRegistry<LanguageModel>, modelRegistry: AbstractModelRegistry
+    ) {
         self.typeRegistry = typeRegistry
         self.modelRegistry = modelRegistry
     }
@@ -468,7 +470,7 @@ public final class LLMModelFactory: ModelFactory {
         typeRegistry: LLMTypeRegistry.shared, modelRegistry: LLMRegistry.shared)
 
     /// registry of model type, e.g. configuration value `llama` -> configuration and init methods
-    public let typeRegistry: ModelTypeRegistry
+    public let typeRegistry: ModelTypeRegistry<LanguageModel>
 
     /// registry of model id to configuration, e.g. `mlx-community/Llama-3.2-3B-Instruct-4bit`
     public let modelRegistry: AbstractModelRegistry
@@ -564,7 +566,8 @@ public final class LLMModelFactory: ModelFactory {
 
 }
 
-public class TrampolineModelFactory: NSObject, ModelFactoryTrampoline {
+public class TrampolineModelFactory: NSObject, ModelFactoryTrampoline<ModelContext, ModelContainer>
+{
     public static func modelFactory() -> (any MLXLMCommon.ModelFactory)? {
         LLMModelFactory.shared
     }
