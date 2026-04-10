@@ -449,10 +449,8 @@ private func load<R>(loader: (any ModelFactory) async throws -> sending R) async
 ///
 /// ## See Also
 /// - ``ModelFactoryRegistry``
-public protocol ModelFactoryTrampoline<ContextType, ContainerType> {
-    associatedtype ContextType
-    associatedtype ContainerType: Sendable
-    static func modelFactory() -> (any GenericModelFactory<ContextType, ContainerType>)?
+public protocol ModelFactoryTrampoline {
+    static func modelFactory() -> (any GenericModelFactory<ModelContext, ModelContainer>)?
 }
 
 /// Registry of ``ModelFactory`` trampolines.
@@ -480,12 +478,12 @@ final public class ModelFactoryRegistry: @unchecked Sendable {
         self.trampolines = [
             {
                 (NSClassFromString("MLXVLM.TrampolineModelFactory")
-                    as? any ModelFactoryTrampoline<ModelContext, ModelContainer>.Type)?
+                    as? any ModelFactoryTrampoline.Type)?
                     .modelFactory()
             },
             {
                 (NSClassFromString("MLXLLM.TrampolineModelFactory")
-                    as? any ModelFactoryTrampoline<ModelContext, ModelContainer>.Type)?
+                    as? any ModelFactoryTrampoline.Type)?
                     .modelFactory()
             },
         ]
