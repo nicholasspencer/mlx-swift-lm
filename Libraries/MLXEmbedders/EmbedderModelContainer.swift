@@ -41,6 +41,12 @@ public final class EmbedderModelContainer: Sendable {
         }
     }
 
+    public var poolingStrategy: Pooling.Strategy {
+        get async {
+            await context.read { $0.pooling.strategy }
+        }
+    }
+
     public init(context: consuming EmbedderModelContext) {
         self.context = .init(context)
     }
@@ -57,6 +63,15 @@ public final class EmbedderModelContainer: Sendable {
     ) async rethrows -> sending R {
         try await context.read {
             try await action($0)
+        }
+    }
+
+    @available(*, deprecated, message: "use perform(_: (EmbedderModelContext) -> R) instead")
+    public func perform<R: Sendable>(
+        _ action: @Sendable (EmbeddingModel, Tokenizer, Pooling) async throws -> sending R
+    ) async rethrows -> sending R {
+        try await context.read {
+            try await action($0.model, $0.tokenizer, $0.pooling)
         }
     }
 

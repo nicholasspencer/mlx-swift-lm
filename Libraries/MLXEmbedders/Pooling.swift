@@ -66,7 +66,7 @@ func loadPooling(modelDirectory: URL, model: EmbeddingModel) -> Pooling {
 open class Pooling: Module {
 
     /// Supported pooling strategies.
-    public enum Strategy {
+    public enum Strategy: Sendable {
         /// Average all token embeddings (weighted by mask).
         case mean
         /// Use the pooled output (CLS) provided by the model.

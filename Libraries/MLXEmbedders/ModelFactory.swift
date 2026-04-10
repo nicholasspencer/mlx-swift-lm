@@ -100,7 +100,7 @@ public class EmbedderRegistry: AbstractModelRegistry, @unchecked Sendable {
 public struct EmbedderModelContext {
     public var configuration: ModelConfiguration
     public var model: any EmbeddingModel
-    public var tokenizer: Tokenizer
+    public var tokenizer: any Tokenizer
     public let pooling: Pooling
 
     public init(
