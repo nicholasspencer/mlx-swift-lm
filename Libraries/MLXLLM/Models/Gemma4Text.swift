@@ -276,11 +276,9 @@ private class Gemma4Attention: Module {
         } else {
             var k = kProj(x).reshaped(B, L, nKvHeads, effectiveHeadDim)
             k = kNorm(k)
-            k = k.transposed(0, 2, 1, 3)
 
-            currentOffset = cache?.offset ?? 0
-            k = rope(k, offset: currentOffset)
-
+            // When K-eq-V, copy k BEFORE transpose/RoPE so values don't
+            // get positional encoding and aren't double-transposed.
             var v: MLXArray
             if useKeqV {
                 v = k
@@ -289,6 +287,10 @@ private class Gemma4Attention: Module {
             }
             v = vNorm(v)
             v = v.transposed(0, 2, 1, 3)
+
+            k = k.transposed(0, 2, 1, 3)
+            currentOffset = cache?.offset ?? 0
+            k = rope(k, offset: currentOffset)
 
             if let cache {
                 let (updatedK, updatedV) = cache.update(keys: k, values: v)
