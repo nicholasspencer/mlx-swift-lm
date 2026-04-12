@@ -26,10 +26,19 @@ public enum Chat {
         /// render a correlated tool-response turn.
         public var name: String?
 
+        /// For `role: .assistant` messages: tool calls the assistant issued in this turn.
+        /// Each entry follows the OpenAI shape
+        /// `{"id": String, "type": "function", "function": {"name": String, "arguments": <dict or JSON string>}}`.
+        /// Rendered as `tool_calls` in the message dict so chat templates (Gemma 4's
+        /// `<|tool_call>call:<name>{...}<tool_call|>`, Qwen's `<tool_call><function=..>..</function></tool_call>`)
+        /// can reproduce the assistant's prior call alongside its content.
+        public var toolCalls: [[String: any Sendable]]?
+
         public init(
             role: Role, content: String, images: [UserInput.Image] = [],
             videos: [UserInput.Video] = [],
-            toolCallId: String? = nil, name: String? = nil
+            toolCallId: String? = nil, name: String? = nil,
+            toolCalls: [[String: any Sendable]]? = nil
         ) {
             self.role = role
             self.content = content
@@ -37,6 +46,7 @@ public enum Chat {
             self.videos = videos
             self.toolCallId = toolCallId
             self.name = name
+            self.toolCalls = toolCalls
         }
 
         public static func system(
@@ -46,9 +56,13 @@ public enum Chat {
         }
 
         public static func assistant(
-            _ content: String, images: [UserInput.Image] = [], videos: [UserInput.Video] = []
+            _ content: String, images: [UserInput.Image] = [], videos: [UserInput.Video] = [],
+            toolCalls: [[String: any Sendable]]? = nil
         ) -> Self {
-            Self(role: .assistant, content: content, images: images, videos: videos)
+            Self(
+                role: .assistant, content: content, images: images, videos: videos,
+                toolCalls: toolCalls
+            )
         }
 
         public static func user(
@@ -108,6 +122,9 @@ extension MessageGenerator {
         if let name = message.name {
             dict["name"] = name
         }
+        if let toolCalls = message.toolCalls {
+            dict["tool_calls"] = toolCalls
+        }
         return dict
     }
 
@@ -156,6 +173,9 @@ public struct DefaultMessageGenerator: MessageGenerator {
         }
         if let name = message.name {
             dict["name"] = name
+        }
+        if let toolCalls = message.toolCalls {
+            dict["tool_calls"] = toolCalls
         }
         return dict
     }
