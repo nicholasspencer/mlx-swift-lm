@@ -14,14 +14,29 @@ public enum Chat {
         /// Array of video data associated with the message.
         public var videos: [UserInput.Video]
 
+        /// For `role: .tool` messages: the id of the preceding tool call this result
+        /// corresponds to. Rendered as `tool_call_id` in the message dict, matching the
+        /// OpenAI / Anthropic / Gemma 4 wire format so chat templates can correlate
+        /// tool responses with calls (`message.tool_call_id == assistant.tool_calls[*].id`).
+        public var toolCallId: String?
+
+        /// For `role: .tool` messages: the name of the tool that produced this result.
+        /// Rendered as `name` in the message dict. Some templates (notably Gemma 4's
+        /// `<|tool_response>response:<name>{...}<tool_response|>`) require this to
+        /// render a correlated tool-response turn.
+        public var name: String?
+
         public init(
             role: Role, content: String, images: [UserInput.Image] = [],
-            videos: [UserInput.Video] = []
+            videos: [UserInput.Video] = [],
+            toolCallId: String? = nil, name: String? = nil
         ) {
             self.role = role
             self.content = content
             self.images = images
             self.videos = videos
+            self.toolCallId = toolCallId
+            self.name = name
         }
 
         public static func system(
@@ -42,8 +57,10 @@ public enum Chat {
             Self(role: .user, content: content, images: images, videos: videos)
         }
 
-        public static func tool(_ content: String) -> Self {
-            Self(role: .tool, content: content)
+        public static func tool(
+            _ content: String, toolCallId: String? = nil, name: String? = nil
+        ) -> Self {
+            Self(role: .tool, content: content, toolCallId: toolCallId, name: name)
         }
 
         public enum Role: String, Sendable {
@@ -81,10 +98,17 @@ public protocol MessageGenerator: Sendable {
 extension MessageGenerator {
 
     public func generate(message: Chat.Message) -> Message {
-        [
+        var dict: Message = [
             "role": message.role.rawValue,
             "content": message.content,
         ]
+        if let toolCallId = message.toolCallId {
+            dict["tool_call_id"] = toolCallId
+        }
+        if let name = message.name {
+            dict["name"] = name
+        }
+        return dict
     }
 
     public func generate(messages: [Chat.Message]) -> [Message] {
@@ -123,10 +147,17 @@ public struct DefaultMessageGenerator: MessageGenerator {
     public init() {}
 
     public func generate(message: Chat.Message) -> Message {
-        [
+        var dict: Message = [
             "role": message.role.rawValue,
             "content": message.content,
         ]
+        if let toolCallId = message.toolCallId {
+            dict["tool_call_id"] = toolCallId
+        }
+        if let name = message.name {
+            dict["name"] = name
+        }
+        return dict
     }
 }
 
