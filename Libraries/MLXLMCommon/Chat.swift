@@ -34,11 +34,19 @@ public enum Chat {
         /// can reproduce the assistant's prior call alongside its content.
         public var toolCalls: [[String: any Sendable]]?
 
+        /// For `role: .assistant` messages: the model's prior reasoning / chain-of-thought,
+        /// rendered as `reasoning_content` in the message dict. Qwen3-family chat
+        /// templates read this field and re-render the prior `<think>...</think>`
+        /// content into the prompt during multi-step tool loops, so dropping it
+        /// degrades the model's view of its own reasoning history.
+        public var reasoningContent: String?
+
         public init(
             role: Role, content: String, images: [UserInput.Image] = [],
             videos: [UserInput.Video] = [],
             toolCallId: String? = nil, name: String? = nil,
-            toolCalls: [[String: any Sendable]]? = nil
+            toolCalls: [[String: any Sendable]]? = nil,
+            reasoningContent: String? = nil
         ) {
             self.role = role
             self.content = content
@@ -47,6 +55,7 @@ public enum Chat {
             self.toolCallId = toolCallId
             self.name = name
             self.toolCalls = toolCalls
+            self.reasoningContent = reasoningContent
         }
 
         public static func system(
@@ -57,11 +66,12 @@ public enum Chat {
 
         public static func assistant(
             _ content: String, images: [UserInput.Image] = [], videos: [UserInput.Video] = [],
-            toolCalls: [[String: any Sendable]]? = nil
+            toolCalls: [[String: any Sendable]]? = nil,
+            reasoningContent: String? = nil
         ) -> Self {
             Self(
                 role: .assistant, content: content, images: images, videos: videos,
-                toolCalls: toolCalls
+                toolCalls: toolCalls, reasoningContent: reasoningContent
             )
         }
 
@@ -125,6 +135,9 @@ extension MessageGenerator {
         if let toolCalls = message.toolCalls {
             dict["tool_calls"] = toolCalls
         }
+        if let reasoningContent = message.reasoningContent {
+            dict["reasoning_content"] = reasoningContent
+        }
         return dict
     }
 
@@ -176,6 +189,9 @@ public struct DefaultMessageGenerator: MessageGenerator {
         }
         if let toolCalls = message.toolCalls {
             dict["tool_calls"] = toolCalls
+        }
+        if let reasoningContent = message.reasoningContent {
+            dict["reasoning_content"] = reasoningContent
         }
         return dict
     }
